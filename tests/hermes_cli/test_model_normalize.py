@@ -38,19 +38,40 @@ class TestIssue5211OpenCodeGoDotPreservation:
 # ── Anthropic dot-to-hyphen conversion (regression) ────────────────────
 
 class TestAnthropicDotToHyphen:
-    """Anthropic API still needs dots→hyphens."""
+    """Anthropic Claude IDs use hyphens; third-party IDs keep dots."""
 
     @pytest.mark.parametrize("model,expected", [
         ("claude-sonnet-4.6", "claude-sonnet-4-6"),
         ("claude-opus-4.5", "claude-opus-4-5"),
     ])
-    def test_anthropic_converts_dots(self, model, expected):
+    def test_anthropic_converts_claude_dots(self, model, expected):
         result = normalize_model_for_provider(model, "anthropic")
         assert result == expected
 
-    def test_anthropic_strips_vendor_prefix(self):
+    def test_anthropic_strips_claude_vendor_prefix(self):
         result = normalize_model_for_provider("anthropic/claude-sonnet-4.6", "anthropic")
         assert result == "claude-sonnet-4-6"
+
+    @pytest.mark.parametrize("model,expected", [
+        ("kimi-k2.5", "kimi-k2.5"),
+        ("minimax-m2.7", "minimax-m2.7"),
+        ("glm-5.1", "glm-5.1"),
+        ("mimo-v2.5-pro", "mimo-v2.5-pro"),
+        ("qwen3.5-plus", "qwen3.5-plus"),
+    ])
+    def test_anthropic_preserves_dots_for_non_claude_models(self, model, expected):
+        """Regression for #22196: Anthropic-compatible endpoints may serve non-Claude IDs."""
+        result = normalize_model_for_provider(model, "anthropic")
+        assert result == expected
+
+    @pytest.mark.parametrize("model,expected", [
+        ("anthropic/kimi-k2.5", "kimi-k2.5"),
+        ("anthropic/minimax-m2.7", "minimax-m2.7"),
+        ("anthropic/glm-5.1", "glm-5.1"),
+    ])
+    def test_anthropic_strips_prefix_but_preserves_non_claude_dots(self, model, expected):
+        result = normalize_model_for_provider(model, "anthropic")
+        assert result == expected
 
 
 # ── OpenCode Zen regression ────────────────────────────────────────────

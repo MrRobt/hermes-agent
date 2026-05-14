@@ -409,12 +409,18 @@ def normalize_model_for_provider(model_input: str, target_provider: str) -> str:
             return _dots_to_hyphens(name)
         return name
 
-    # --- Anthropic: strip matching provider prefix, dots -> hyphens ---
+    # --- Anthropic: strip matching provider prefix.
+    #     Only Claude IDs use Anthropic's dash notation. Third-party
+    #     Anthropic-compatible coding endpoints (Infini, etc.) expose non-Claude
+    #     IDs such as kimi-k2.5 / minimax-m2.7 / glm-5.1 and reject the dashed
+    #     variants, so preserve dots unless this is actually a Claude model. ---
     if provider in _DOT_TO_HYPHEN_PROVIDERS:
         bare = _strip_matching_provider_prefix(name, provider)
         if "/" in bare:
             return bare
-        return _dots_to_hyphens(bare)
+        if bare.lower().startswith("claude-"):
+            return _dots_to_hyphens(bare)
+        return bare
 
     # --- Copilot / Copilot ACP: delegate to the Copilot-specific
     #     normalizer.  It knows about the alias table (vendor-prefix
