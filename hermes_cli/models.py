@@ -290,6 +290,10 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
         "MiniMax-M2",
     ],
     "anthropic": [
+        "kimi-k2.6",
+        "kimi-k2.5",
+        "minimax-m2.7",
+        "glm-5.1",
         "claude-opus-4-7",
         "claude-opus-4-6",
         "claude-sonnet-4-6",
