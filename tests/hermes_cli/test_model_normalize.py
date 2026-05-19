@@ -52,6 +52,16 @@ class TestAnthropicDotToHyphen:
         result = normalize_model_for_provider("anthropic/claude-sonnet-4.6", "anthropic")
         assert result == "claude-sonnet-4-6"
 
+    @pytest.mark.parametrize("model,expected", [
+        ("kimi-k2.5", "kimi-k2.5"),
+        ("kimi-k2.6", "kimi-k2.6"),
+        ("minimax-m2.7", "minimax-m2.7"),
+        ("glm-5.1", "glm-5.1"),
+    ])
+    def test_anthropic_compatible_proxy_preserves_non_claude_dots(self, model, expected):
+        result = normalize_model_for_provider(model, "anthropic")
+        assert result == expected
+
 
 # ── OpenCode Zen regression ────────────────────────────────────────────
 

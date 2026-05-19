@@ -71,7 +71,7 @@ _AGGREGATOR_PROVIDERS: frozenset[str] = frozenset({
     "kilocode",
 })
 
-# Providers that want bare names with dots replaced by hyphens.
+# Providers that want Claude bare names with dots replaced by hyphens.
 _DOT_TO_HYPHEN_PROVIDERS: frozenset[str] = frozenset({
     "anthropic",
 })
@@ -409,10 +409,17 @@ def normalize_model_for_provider(model_input: str, target_provider: str) -> str:
             return _dots_to_hyphens(name)
         return name
 
-    # --- Anthropic: strip matching provider prefix, dots -> hyphens ---
+    # --- Anthropic: strip matching provider prefix.  Native Claude model IDs
+    #     use hyphens where marketing names use dots (claude-sonnet-4.6 ->
+    #     claude-sonnet-4-6), but Anthropic-compatible proxy providers can
+    #     also serve non-Claude models such as kimi-k2.5 / minimax-m2.7.  Those
+    #     IDs are provider-native and must keep their dots, otherwise the
+    #     upstream API rejects them as unsupported models. ---
     if provider in _DOT_TO_HYPHEN_PROVIDERS:
         bare = _strip_matching_provider_prefix(name, provider)
         if "/" in bare:
+            return bare
+        if not bare.lower().startswith("claude-"):
             return bare
         return _dots_to_hyphens(bare)
 
