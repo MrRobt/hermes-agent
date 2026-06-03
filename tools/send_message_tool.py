@@ -501,15 +501,36 @@ async def _send_via_adapter(
             adapter = None
         if adapter is not None:
             try:
+                from gateway.platforms.base import should_send_media_as_audio
+
                 metadata = {"thread_id": thread_id} if thread_id else None
-                result = await adapter.send(chat_id=chat_id, content=chunk, metadata=metadata)
+                last_result = None
+                if str(chunk or "").strip():
+                    last_result = await adapter.send(chat_id=chat_id, content=chunk, metadata=metadata)
+                    if not last_result.success:
+                        return {"error": f"Adapter send failed: {last_result.error}"}
+
+                for media_path, is_voice in media_files or []:
+                    ext = os.path.splitext(media_path)[1].lower()
+                    if should_send_media_as_audio(platform, ext, is_voice=is_voice) and hasattr(adapter, "send_voice"):
+                        last_result = await adapter.send_voice(chat_id=chat_id, audio_path=media_path, metadata=metadata)
+                    elif ext in _VIDEO_EXTS and hasattr(adapter, "send_video") and not force_document:
+                        last_result = await adapter.send_video(chat_id=chat_id, video_path=media_path, metadata=metadata)
+                    elif ext in _IMAGE_EXTS and hasattr(adapter, "send_image_file") and not force_document:
+                        last_result = await adapter.send_image_file(chat_id=chat_id, image_path=media_path, metadata=metadata)
+                    elif hasattr(adapter, "send_document"):
+                        last_result = await adapter.send_document(chat_id=chat_id, file_path=media_path, metadata=metadata)
+                    else:
+                        return {"error": f"Adapter for platform '{getattr(platform, 'value', platform)}' cannot send media attachments"}
+                    if not last_result.success:
+                        return {"error": f"Adapter media send failed: {last_result.error}"}
             except asyncio.CancelledError:
                 raise
             except Exception as e:
                 return {"error": f"Plugin platform send failed: {e}"}
-            if result.success:
-                return {"success": True, "message_id": result.message_id}
-            return {"error": f"Adapter send failed: {result.error}"}
+            if last_result is None:
+                return {"success": True, "message_id": None}
+            return {"success": True, "message_id": last_result.message_id}
 
     platform_name = platform.value if hasattr(platform, "value") else str(platform)
     entry = None
@@ -734,11 +755,30 @@ async def _send_to_platform(platform, pconfig, chat_id, message, thread_id=None,
             last_result = result
         return last_result
 
+    # --- QQBot: native media attachment support via running gateway adapter ---
+    if platform == Platform.QQBOT and media_files:
+        last_result = None
+        for i, chunk in enumerate(chunks):
+            is_last = (i == len(chunks) - 1)
+            result = await _send_via_adapter(
+                platform,
+                pconfig,
+                chat_id,
+                chunk,
+                thread_id=thread_id,
+                media_files=media_files if is_last else [],
+                force_document=force_document,
+            )
+            if isinstance(result, dict) and result.get("error"):
+                return result
+            last_result = result
+        return last_result
+
     # --- Non-media platforms ---
     if media_files and not message.strip():
         return {
             "error": (
-                f"send_message MEDIA delivery is currently only supported for telegram, discord, matrix, weixin, signal, yuanbao and feishu; "
+                f"send_message MEDIA delivery is currently only supported for telegram, discord, matrix, weixin, signal, yuanbao, feishu and qqbot; "
                 f"target {platform.value} had only media attachments"
             )
         }
@@ -746,7 +786,7 @@ async def _send_to_platform(platform, pconfig, chat_id, message, thread_id=None,
     if media_files:
         warning = (
             f"MEDIA attachments were omitted for {platform.value}; "
-            "native send_message media delivery is currently only supported for telegram, discord, matrix, weixin, signal, yuanbao and feishu"
+            "native send_message media delivery is currently only supported for telegram, discord, matrix, weixin, signal, yuanbao, feishu and qqbot"
         )
 
     last_result = None

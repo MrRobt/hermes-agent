@@ -4886,10 +4886,13 @@ class HermesCLI:
             except Exception:
                 resolved_id = self.session_id
             if resolved_id and resolved_id != self.session_id:
+                # 注意：这里不能把 ANSI 颜色码放进 Rich 标记语法里。
+                # 旧写法 f"[{_DIM}]...[/]" 会被 Rich 当成未配对标签解析，
+                # 在压缩会话恢复时触发 MarkupError，导致 Paperclip Agent 启动即失败。
                 ChatConsole().print(
-                    f"[{_DIM}]Session {_escape(self.session_id)} was compressed into "
+                    f"{_DIM}Session {_escape(self.session_id)} was compressed into "
                     f"{_escape(resolved_id)}; resuming the descendant with your "
-                    f"transcript.[/]"
+                    f"transcript.{_RST}"
                 )
                 self.session_id = resolved_id
                 resolved_meta = self._session_db.get_session(self.session_id)

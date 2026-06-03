@@ -298,6 +298,8 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
         "claude-opus-4-20250514",
         "claude-sonnet-4-20250514",
         "claude-haiku-4-5-20251001",
+        "kimi-k2.5",
+        "glm-5.1",
     ],
     "deepseek": [
         "deepseek-v4-pro",
